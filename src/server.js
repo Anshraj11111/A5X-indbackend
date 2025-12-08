@@ -26,7 +26,10 @@ app.use(helmet());
 app.use(express.json());
 
 app.use(cors({
-  origin: ["http://localhost:5173"],
+  origin: [
+    "http://localhost:5173",
+    process.env.FRONTEND_URL
+  ],
   credentials: true,
 }));
 
