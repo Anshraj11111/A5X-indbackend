@@ -28,10 +28,12 @@ app.use(express.json());
 app.use(cors({
   origin: [
     "http://localhost:5173",
-    process.env.FRONTEND_URL
+    "https://a5x-indfrontend.vercel.app",
+    "https://a5-x-indfrontend-git-main-anshraj-baghels-projects.vercel.app"
   ],
   credentials: true,
 }));
+
 
 // ---- CORS FIX FOR IMAGES ----
 app.use("/uploads",
