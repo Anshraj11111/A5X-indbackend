@@ -27,10 +27,14 @@ app.use(express.json());
 
 // ✅ ✅ ✅ FINAL CORS (FIXED FOR VERCEL + LOCAL + MOBILE)
 app.use(cors({
-  origin: "*",                      // ✅ Allow all origins
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  origin: [
+    "http://localhost:5173",
+    "https://a5-x-indfrontend.vercel.app",
+    "https://a5-x-indfrontend-git-main-anshraj-baghels-projects.vercel.app"
+  ],
+  credentials: true,
 }));
+
 
 // ----- IMAGE STATIC ACCESS FIX -----
 app.use(
