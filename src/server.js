@@ -30,10 +30,9 @@ app.use(cors({
   origin: [
     "http://localhost:5173",
     "https://a5-x-indfrontend.vercel.app",
-    "https://a5-x-indfrontend-git-main-anshraj-baghels-projects.vercel.app",
-    "https://a5-x-indfrontend-qow336yo5-anshraj-baghels-projects.vercel.app"
+    "https://a5-x-indfrontend-git-main-anshraj-baghels-projects.vercel.app"
   ],
-  credentials: false, // ✅ JWT use ho raha hai
+  credentials: true,
 }));
 
 
