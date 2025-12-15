@@ -1,58 +1,106 @@
-import express from 'express';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import validator from 'validator';
-import User from '../models/User.js';
+import express from "express";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import validator from "validator";
+import User from "../models/User.js";
 
 const router = express.Router();
 
-// SIGNUP
-router.post('/signup', async (req, res) => {
-  const { name, email, password, adminCode } = req.body;
+/* =======================
+   SIGNUP ROUTE
+======================= */
+router.post("/signup", async (req, res) => {
+  try {
+    const { name, email, password, adminCode } = req.body;
 
-  if (!name || !email || !password || !adminCode)
-    return res.status(400).json({ message: 'All fields required' });
+    // Check required fields
+    if (!name || !email || !password || !adminCode) {
+      return res.status(400).json({ message: "All fields required" });
+    }
 
-  if (!validator.isEmail(email))
-    return res.status(400).json({ message: 'Invalid email format' });
+    // Validate email
+    if (!validator.isEmail(email)) {
+      return res.status(400).json({ message: "Invalid email format" });
+    }
 
-  // Admin Code Check
-  if (adminCode !== process.env.ADMIN_CODE)
-    return res.status(401).json({ message: 'Invalid Admin Code' });
+    // Admin Code Check (trim for safety)
+    if (adminCode.trim() !== process.env.ADMIN_CODE) {
+      return res.status(401).json({ message: "Invalid Admin Code" });
+    }
 
-  const exists = await User.findOne({ email });
-  if (exists) return res.status(400).json({ message: 'Email already exists' });
+    // Check existing user
+    const exists = await User.findOne({ email });
+    if (exists) {
+      return res.status(400).json({ message: "Email already exists" });
+    }
 
-  const salt = await bcrypt.genSalt(10);
-  const hashed = await bcrypt.hash(password, salt);
+    // Hash password (optimized)
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-  const user = await User.create({ name, email, password: hashed });
+    // Create user
+    const user = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+    });
 
-  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    // Generate JWT
+    const token = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
 
-  res.json({ token, user });
+    res.status(201).json({ token, user });
+
+  } catch (error) {
+    console.error("Signup Error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
-// LOGIN
-router.post('/login', async (req, res) => {
-  const { email, password, adminCode } = req.body;
+/* =======================
+   LOGIN ROUTE
+======================= */
+router.post("/login", async (req, res) => {
+  try {
+    const { email, password, adminCode } = req.body;
 
-  if (!email || !password || !adminCode)
-    return res.status(400).json({ message: 'All fields required' });
+    // Check required fields
+    if (!email || !password || !adminCode) {
+      return res.status(400).json({ message: "All fields required" });
+    }
 
-  // Admin Code Check
-  if (adminCode !== process.env.ADMIN_CODE)
-    return res.status(401).json({ message: 'Invalid Admin Code' });
+    // Admin Code Check
+    if (adminCode.trim() !== process.env.ADMIN_CODE) {
+      return res.status(401).json({ message: "Invalid Admin Code" });
+    }
 
-  const user = await User.findOne({ email });
-  if (!user) return res.status(400).json({ message: 'Invalid credentials' });
+    // Find user
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
 
-  const isMatch = await bcrypt.compare(password, user.password);
-  if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
+    // Compare password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
 
-  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    // Generate JWT
+    const token = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
 
-  res.json({ token, user });
+    res.json({ token, user });
+
+  } catch (error) {
+    console.error("Login Error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
 export default router;

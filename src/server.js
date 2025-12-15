@@ -55,7 +55,6 @@ app.use(cors({
   origin: [
     "http://localhost:5173",
     "https://a5-x-indfrontend.vercel.app",
-    "https://a5-x-indfrontend-git-main-anshraj-baghels-projects.vercel.app"
   ],
   credentials: false,   // ✅ MUST BE FALSE
 }));
