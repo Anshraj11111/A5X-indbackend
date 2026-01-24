@@ -105,83 +105,69 @@ export const sendContactMail = async (req, res) => {
       });
     }
 
-    // ✅ Check env
-    if (!process.env.MAIL_USER || !process.env.MAIL_PASS || !process.env.MAIL_TO) {
-      return res.status(500).json({
-        success: false,
-        message: "Mail service not configured properly (ENV missing).",
-      });
-    }
-
-    // ✅ Gmail transporter (faster + stable)
-    const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
-      auth: {
-        user: process.env.MAIL_USER,
-        pass: process.env.MAIL_PASS,
-      },
-    });
-
-    // ✅ 1) Admin Mail
-    const adminMailOptions = {
-      from: `"A5X Industries" <${process.env.MAIL_USER}>`,
-      to: process.env.MAIL_TO,
-      subject: "New Contact Form Submission ✅",
-      html: `
-        <h2>New Website Enquiry 🚀</h2>
-        <p><b>Name:</b> ${user_name}</p>
-        <p><b>Email:</b> ${user_email}</p>
-        <p><b>Phone:</b> ${user_phone}</p>
-        <p><b>Organisation:</b> ${organization || "N/A"}</p>
-        <p><b>Project Type:</b> ${project_type || "N/A"}</p>
-        <p><b>Budget:</b> ${budget || "N/A"}</p>
-        <p><b>Message:</b><br/>${message}</p>
-      `,
-    };
-
-    // ✅ 2) Auto Reply Mail
-    const userMailOptions = {
-      from: `"A5X Industries" <${process.env.MAIL_USER}>`,
-      to: user_email,
-      subject: "Thanks for contacting A5X Industries ✅",
-      html: `
-        <h2>Hello ${user_name} 👋</h2>
-        <p>Thank you for contacting <b>A5X Industries</b>.</p>
-        <p>We have received your enquiry and our team will reply within <b>24–48 hours</b>.</p>
-
-        <hr/>
-
-        <p><b>Your Submitted Details:</b></p>
-        <p><b>Phone:</b> ${user_phone}</p>
-        <p><b>Organisation:</b> ${organization || "N/A"}</p>
-        <p><b>Project Type:</b> ${project_type || "N/A"}</p>
-        <p><b>Budget:</b> ${budget || "N/A"}</p>
-        <p><b>Message:</b><br/>${message}</p>
-
-        <br/>
-        <p>Regards,<br/><b>A5X Industries Team</b></p>
-      `,
-    };
-
-    // ✅ FAST: Send both emails in parallel (delay kam ✅)
-    await Promise.all([
-      transporter.sendMail(adminMailOptions),
-      transporter.sendMail(userMailOptions),
-    ]);
-
-    return res.status(200).json({
+    // ✅ Immediately response send (NO WAITING ✅)
+    res.status(200).json({
       success: true,
-      message: "Enquiry sent successfully ✅",
+      message: "Enquiry submitted ✅",
     });
-  } catch (error) {
-    console.log("Contact Email Error:", error);
 
-    return res.status(500).json({
-      success: false,
-      message: "Message not sent ❌",
-      error: error.message,
-    });
+    // ✅ Background email sending (try/catch inside)
+    try {
+      const transporter = nodemailer.createTransport({
+        host: "smtp.gmail.com",
+        port: 465,
+        secure: true,
+        auth: {
+          user: process.env.MAIL_USER,
+          pass: process.env.MAIL_PASS,
+        },
+
+        // ✅ timeouts added (very important)
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 10000,
+      });
+
+      const adminMailOptions = {
+        from: `"A5X Industries" <${process.env.MAIL_USER}>`,
+        to: process.env.MAIL_TO,
+        subject: "New Contact Form Submission ✅",
+        html: `
+          <h2>New Website Enquiry 🚀</h2>
+          <p><b>Name:</b> ${user_name}</p>
+          <p><b>Email:</b> ${user_email}</p>
+          <p><b>Phone:</b> ${user_phone}</p>
+          <p><b>Organisation:</b> ${organization || "N/A"}</p>
+          <p><b>Project Type:</b> ${project_type || "N/A"}</p>
+          <p><b>Budget:</b> ${budget || "N/A"}</p>
+          <p><b>Message:</b><br/>${message}</p>
+        `,
+      };
+
+      const userMailOptions = {
+        from: `"A5X Industries" <${process.env.MAIL_USER}>`,
+        to: user_email,
+        subject: "Thanks for contacting A5X Industries ✅",
+        html: `
+          <h2>Hello ${user_name} 👋</h2>
+          <p>Thank you for contacting <b>A5X Industries</b>.</p>
+          <p>We have received your enquiry and our team will reply within <b>24–48 hours</b>.</p>
+          <br/>
+          <p>Regards,<br/><b>A5X Industries Team</b></p>
+        `,
+      };
+
+      await Promise.all([
+        transporter.sendMail(adminMailOptions),
+        transporter.sendMail(userMailOptions),
+      ]);
+
+      console.log("✅ Contact Emails Sent Successfully");
+    } catch (mailErr) {
+      console.log("❌ Email sending failed:", mailErr.message);
+    }
+  } catch (error) {
+    console.log("❌ Contact API Error:", error.message);
+    // Note: response already sent in success flow
   }
 };
