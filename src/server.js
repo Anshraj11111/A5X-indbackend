@@ -152,6 +152,7 @@ import teamRoutes from "./routes/teamRoutes.js";
 import contentRoutes from "./routes/contentRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import galleryRoutes from "./routes/galleryRoutes.js";
+import contactRoutes from "./routes/contactRoutes.js";
 
 dotenv.config();
 const app = express();
@@ -245,6 +246,7 @@ app.use("/api/team", teamRoutes);
 app.use("/api/content", contentRoutes);
 app.use("/api/uploads", uploadRoutes);
 app.use("/api/gallery", galleryRoutes);
+app.use("/api/contact",contactRoutes);
 
 /* ======================
    ERROR HANDLER
