@@ -86,104 +86,97 @@
 import nodemailer from "nodemailer";
 
 export const sendContactMail = async (req, res) => {
-  const {
-    user_name,
-    user_email,
-    user_phone,
-    organization,
-    project_type,
-    budget,
-    message,
-  } = req.body;
+  try {
+    const {
+      user_name,
+      user_email,
+      user_phone,
+      organization,
+      project_type,
+      budget,
+      message,
+    } = req.body;
 
-  /* =====================
-     BASIC VALIDATION
-  ====================== */
-  if (!user_name || !user_email || !user_phone || !message) {
-    return res.status(400).json({
-      success: false,
-      message: "Name, Email, Phone and Message are required!",
+    /* =====================
+       VALIDATION
+    ====================== */
+    if (!user_name || !user_email || !user_phone || !message) {
+      return res.status(400).json({
+        success: false,
+        message: "Name, Email, Phone and Message are required!",
+      });
+    }
+
+    if (!process.env.MAIL_USER || !process.env.MAIL_PASS || !process.env.MAIL_TO) {
+      return res.status(500).json({
+        success: false,
+        message: "Mail service not configured",
+      });
+    }
+
+    /* =====================
+       GMAIL TRANSPORT (SAFE)
+    ====================== */
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.MAIL_USER,
+        pass: process.env.MAIL_PASS.replace(/\s/g, ""),
+      },
     });
-  }
 
-  if (!process.env.MAIL_USER || !process.env.MAIL_PASS || !process.env.MAIL_TO) {
+    /* =====================
+       ADMIN MAIL
+    ====================== */
+    await transporter.sendMail({
+      from: `"A5X Website" <${process.env.MAIL_USER}>`,
+      to: process.env.MAIL_TO,
+
+      // 🔥 THIS LINE FIXES LIVE ISSUE
+      replyTo: user_email,
+
+      subject: "New Website Enquiry",
+      html: `
+        <h2>New Enquiry 🚀</h2>
+        <p><b>Name:</b> ${user_name}</p>
+        <p><b>Email:</b> ${user_email}</p>
+        <p><b>Phone:</b> ${user_phone}</p>
+        <p><b>Organisation:</b> ${organization || "N/A"}</p>
+        <p><b>Project:</b> ${project_type || "N/A"}</p>
+        <p><b>Budget:</b> ${budget || "N/A"}</p>
+        <p><b>Message:</b><br/>${message}</p>
+      `,
+    });
+
+    /* =====================
+       AUTO REPLY (SHORT)
+    ====================== */
+    await transporter.sendMail({
+      from: `"A5X Industries" <${process.env.MAIL_USER}>`,
+      to: user_email,
+      subject: "Thanks for contacting A5X Industries",
+      html: `
+        <p>Hello ${user_name},</p>
+        <p>Thank you for contacting <b>A5X Industries</b>.</p>
+        <p>We have received your enquiry and will reply within <b>24–48 hours</b>.</p>
+        <br/>
+        <p>Regards,<br/>A5X Industries Team</p>
+      `,
+    });
+
+    /* =====================
+       FINAL RESPONSE
+    ====================== */
+    return res.status(200).json({
+      success: true,
+      message: "Enquiry submitted successfully",
+    });
+
+  } catch (err) {
+    console.error("❌ Contact Mail Error:", err.message);
     return res.status(500).json({
       success: false,
-      message: "Mail service not configured properly",
+      message: "Something went wrong while sending mail",
     });
   }
-
-  /* =====================
-     SEND RESPONSE FAST
-  ====================== */
-  res.status(200).json({
-    success: true,
-    message: "Enquiry submitted successfully",
-  });
-
-  /* =====================
-     BACKGROUND EMAIL
-  ====================== */
-  setImmediate(async () => {
-    try {
-      console.log("📩 Contact enquiry received (LIVE)");
-
-      const MAIL_PASS = process.env.MAIL_PASS.replace(/\s/g, "");
-
-      /* ✅ GMAIL SAFE TRANSPORT */
-      const transporter = nodemailer.createTransport({
-        service: "gmail", // 🔥 MOST IMPORTANT FIX
-        auth: {
-          user: process.env.MAIL_USER,
-          pass: MAIL_PASS,
-        },
-        tls: {
-          rejectUnauthorized: false, // 🔥 CLOUD FIX
-        },
-      });
-
-      /* ✅ VERIFY SMTP */
-      await transporter.verify();
-      console.log("✅ Gmail SMTP verified");
-
-      /* =====================
-         ADMIN MAIL
-      ====================== */
-      await transporter.sendMail({
-        from: `"A5X Industries" <${process.env.MAIL_USER}>`,
-        to: process.env.MAIL_TO,
-        subject: "New Contact Form Enquiry",
-        html: `
-          <h2>New Website Enquiry 🚀</h2>
-          <p><b>Name:</b> ${user_name}</p>
-          <p><b>Email:</b> ${user_email}</p>
-          <p><b>Phone:</b> ${user_phone}</p>
-          <p><b>Organisation:</b> ${organization || "N/A"}</p>
-          <p><b>Project Type:</b> ${project_type || "N/A"}</p>
-          <p><b>Budget:</b> ${budget || "N/A"}</p>
-          <p><b>Message:</b><br/>${message}</p>
-        `,
-      });
-
-      /* =====================
-         AUTO-REPLY MAIL
-      ====================== */
-      await transporter.sendMail({
-        from: `"A5X Industries" <${process.env.MAIL_USER}>`,
-        to: user_email,
-        subject: "Thanks for contacting A5X Industries",
-        html: `
-          <h3>Hello ${user_name} 👋</h3>
-          <p>Thank you for contacting <b>A5X Industries</b>.</p>
-          <p>We have received your enquiry and our team will reply within <b>24–48 hours</b>.</p>
-          <br/>
-          <p>Regards,<br/><b>A5X Industries Team</b></p>
-        `,
-      });
-
-      console.log("✅ Gmail mails sent successfully (LIVE)");
-    } catch (err) {
-      console.error("❌ LIVE Gmail error:", err.message);
-    }
-  });
 };
