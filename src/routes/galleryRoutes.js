@@ -1,38 +1,53 @@
 import express from "express";
 import GalleryItem from "../models/GalleryItem.js";
 import { protect } from "../middleware/auth.js";
+import upload from "../middleware/upload.js";
 
 const router = express.Router();
 
-// GET all gallery
+/* =====================
+   GET ALL GALLERY ITEMS
+===================== */
 router.get("/", async (req, res) => {
-  const items = await GalleryItem.find().sort({ createdAt: -1 });
-  res.json(items);
-});
-
-
-// ADD gallery item AFTER upload
-router.post("/", protect, async (req, res) => {
   try {
-    const { fileType, url, title, description } = req.body;
-
-    if (!url) return res.status(400).json({ message: "Missing URL" });
-
-    const item = await GalleryItem.create({
-      fileType: fileType || "image",
-      url,
-      title,
-      description,
-      createdBy: req.user._id,
-    });
-
-    res.json(item);
+    const items = await GalleryItem.find().sort({ createdAt: -1 });
+    res.json(items);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
-// DELETE
+/* =====================
+   ADD GALLERY ITEM
+===================== */
+router.post(
+  "/",
+  protect,
+  upload.single("file"), // 👈 frontend se "file" naam se aayega
+  async (req, res) => {
+    try {
+      if (!req.file || !req.file.path) {
+        return res.status(400).json({ message: "Image upload failed" });
+      }
+
+      const item = await GalleryItem.create({
+        fileType: "image",
+        url: req.file.path, // 👈 CLOUDINARY URL
+        title: req.body.title,
+        description: req.body.description,
+        createdBy: req.user._id,
+      });
+
+      res.json(item);
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  }
+);
+
+/* =====================
+   DELETE GALLERY ITEM
+===================== */
 router.delete("/:id", protect, async (req, res) => {
   try {
     await GalleryItem.findByIdAndDelete(req.params.id);
