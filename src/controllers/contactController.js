@@ -107,108 +107,163 @@ export const sendContactMail = async (req, res) => {
   }
 
   /* ✅ CHECK ENV VARIABLES */
+  console.log("📧 Contact form submission received");
+  console.log("   MAIL_USER configured:", !!process.env.MAIL_USER);
+  console.log("   MAIL_PASS configured:", !!process.env.MAIL_PASS);
+  console.log("   MAIL_TO configured:", !!process.env.MAIL_TO);
+
   if (!process.env.MAIL_USER || !process.env.MAIL_PASS || !process.env.MAIL_TO) {
-    console.error("❌ MAIL ENV VARS MISSING:");
-    console.error("   MAIL_USER:", process.env.MAIL_USER ? "✅" : "❌ MISSING");
-    console.error("   MAIL_PASS:", process.env.MAIL_PASS ? "✅" : "❌ MISSING");
-    console.error("   MAIL_TO:", process.env.MAIL_TO ? "✅" : "❌ MISSING");
-    
+    console.error("❌ Email variables not configured on server!");
     return res.status(500).json({
       success: false,
-      message: "Mail service not configured. Please contact support.",
+      message: "Email service not available. Please try again later.",
     });
   }
 
   /* =====================
-     SEND RESPONSE FAST
+     SEND EMAILS (WITH AWAIT)
   ====================== */
-  res.status(200).json({
-    success: true,
-    message: "Enquiry submitted successfully ✅",
-  });
+  try {
+    /* ✅ GMAIL TRANSPORTER */
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.MAIL_USER,
+        pass: process.env.MAIL_PASS,
+      },
+      tls: {
+        rejectUnauthorized: false,
+      },
+    });
 
-  /* =====================
-     BACKGROUND EMAIL
-  ====================== */
-  setImmediate(async () => {
-    try {
-      console.log("📩 Contact enquiry received");
-      console.log("   From:", user_email);
-      console.log("   Subject: " + (project_type || "General inquiry"));
+    /* ✅ TEST CONNECTION */
+    await transporter.verify();
+    console.log("✅ Gmail SMTP connection verified");
 
-      /* ✅ GMAIL TRANSPORTER */
-      const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-          user: process.env.MAIL_USER,
-          pass: process.env.MAIL_PASS, // Use app password as-is (with spaces if needed)
-        },
-        tls: {
-          rejectUnauthorized: false,
-        },
-      });
-
-      /* ✅ VERIFY SMTP CONNECTION */
-      await transporter.verify();
-      console.log("✅ Gmail SMTP verified");
-
-      /* =====================
-         ADMIN MAIL (to you)
-      ====================== */
-      await transporter.sendMail({
-        from: `"A5X Industries" <${process.env.MAIL_USER}>`,
-        to: process.env.MAIL_TO,
-        subject: "🚀 New Contact Form Enquiry - A5X",
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #0ff;">New Website Enquiry 🚀</h2>
-            <div style="background-color: #f5f5f5; padding: 15px; border-radius: 8px;">
-              <p><b>Name:</b> ${user_name}</p>
-              <p><b>Email:</b> ${user_email}</p>
-              <p><b>Phone:</b> ${user_phone}</p>
-              <p><b>Organisation:</b> ${organization || "N/A"}</p>
-              <p><b>Project Type:</b> ${project_type || "N/A"}</p>
-              <p><b>Budget:</b> ${budget || "N/A"}</p>
-              <p><b>Message:</b><br/>${message.replace(/\n/g, "<br/>")}</p>
-            </div>
+    /* =====================
+       SEND ADMIN EMAIL
+    ====================== */
+    const adminResult = await transporter.sendMail({
+      from: `"A5X Industries" <${process.env.MAIL_USER}>`,
+      to: process.env.MAIL_TO,
+      subject: `🚀 New Contact Form Enquiry from ${user_name}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 20px; border-radius: 8px;">
+          <h2 style="color: #0ff; border-bottom: 2px solid #0ff; padding-bottom: 10px;">New Website Enquiry 🚀</h2>
+          <table style="width: 100%; margin: 15px 0;">
+            <tr style="background: white;">
+              <td style="padding: 10px; font-weight: bold; width: 150px;">Name:</td>
+              <td style="padding: 10px;">${user_name}</td>
+            </tr>
+            <tr style="background: #f5f5f5;">
+              <td style="padding: 10px; font-weight: bold;">Email:</td>
+              <td style="padding: 10px;"><a href="mailto:${user_email}">${user_email}</a></td>
+            </tr>
+            <tr style="background: white;">
+              <td style="padding: 10px; font-weight: bold;">Phone:</td>
+              <td style="padding: 10px;"><a href="tel:${user_phone}">${user_phone}</a></td>
+            </tr>
+            <tr style="background: #f5f5f5;">
+              <td style="padding: 10px; font-weight: bold;">Organisation:</td>
+              <td style="padding: 10px;">${organization || "N/A"}</td>
+            </tr>
+            <tr style="background: white;">
+              <td style="padding: 10px; font-weight: bold;">Project Type:</td>
+              <td style="padding: 10px;">${project_type || "N/A"}</td>
+            </tr>
+            <tr style="background: #f5f5f5;">
+              <td style="padding: 10px; font-weight: bold;">Budget:</td>
+              <td style="padding: 10px;">${budget || "N/A"}</td>
+            </tr>
+          </table>
+          <div style="background: white; padding: 15px; border-left: 4px solid #0ff; margin-top: 20px;">
+            <h4 style="margin-top: 0; color: #333;">Message:</h4>
+            <p style="color: #555; line-height: 1.6; white-space: pre-wrap;">${message}</p>
           </div>
-        `,
-      });
-      console.log("✅ Admin email sent to:", process.env.MAIL_TO);
+          <p style="text-align: center; color: #999; font-size: 12px; margin-top: 20px;">
+            This email was sent from a5x.in contact form
+          </p>
+        </div>
+      `,
+    });
+    console.log("✅ Admin email sent successfully:", adminResult.messageId);
 
-      /* =====================
-         AUTO-REPLY MAIL (to user)
-      ====================== */
-      await transporter.sendMail({
-        from: `"A5X Industries" <${process.env.MAIL_USER}>`,
-        to: user_email,
-        subject: "We received your enquiry ✅",
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h3>Hello ${user_name} 👋</h3>
-            <p>Thank you for contacting <b>A5X Industries</b>.</p>
-            <p>We have received your enquiry and our team will respond within <b>24–48 hours</b>.</p>
-            <hr style="margin: 20px 0; border: none; border-top: 1px solid #ccc;">
-            <h4>Your Submitted Details:</h4>
-            <ul>
-              <li><b>Phone:</b> ${user_phone}</li>
-              <li><b>Organisation:</b> ${organization || "N/A"}</li>
-              <li><b>Project Type:</b> ${project_type || "N/A"}</li>
-              <li><b>Budget:</b> ${budget || "N/A"}</li>
-            </ul>
-            <p><b>Message:</b><br/>${message.replace(/\n/g, "<br/>")}</p>
-            <hr style="margin: 20px 0; border: none; border-top: 1px solid #ccc;">
-            <p>Best regards,<br/><b>A5X Industries Team</b></p>
+    /* =====================
+       SEND USER AUTO-REPLY
+    ====================== */
+    const userResult = await transporter.sendMail({
+      from: `"A5X Industries" <${process.env.MAIL_USER}>`,
+      to: user_email,
+      subject: "We received your enquiry ✅ - A5X Industries",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 20px; border-radius: 8px;">
+          <h2 style="color: #0ff; text-align: center;">Thank You! 👋</h2>
+          
+          <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <p>Hello <strong>${user_name}</strong>,</p>
+            
+            <p>Thank you for contacting <strong>A5X Industries</strong>!</p>
+            
+            <p style="background: #e8f8f7; padding: 15px; border-radius: 5px; border-left: 4px solid #0ff;">
+              ✅ We have received your enquiry and our team will review it shortly. We will respond within <strong>24–48 hours</strong>.
+            </p>
+
+            <h4 style="color: #333; border-bottom: 1px solid #ddd; padding-bottom: 10px;">Your Submitted Information:</h4>
+            <table style="width: 100%; margin: 15px 0;">
+              <tr>
+                <td style="padding: 8px; font-weight: bold; width: 150px;">Phone:</td>
+                <td style="padding: 8px;">${user_phone}</td>
+              </tr>
+              <tr style="background: #f5f5f5;">
+                <td style="padding: 8px; font-weight: bold;">Organisation:</td>
+                <td style="padding: 8px;">${organization || "N/A"}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; font-weight: bold;">Project Type:</td>
+                <td style="padding: 8px;">${project_type || "N/A"}</td>
+              </tr>
+              <tr style="background: #f5f5f5;">
+                <td style="padding: 8px; font-weight: bold;">Budget:</td>
+                <td style="padding: 8px;">${budget || "N/A"}</td>
+              </tr>
+            </table>
           </div>
-        `,
-      });
-      console.log("✅ Auto-reply sent to:", user_email);
-      console.log("✅ Both emails sent successfully!");
 
-    } catch (err) {
-      console.error("❌ Email Error:", err.message);
-      console.error("   Error Code:", err.code);
-      console.error("   Gmail Service:", process.env.MAIL_USER ? "Configured" : "Not configured");
-    }
-  });
+          <p style="color: #666; line-height: 1.6;">
+            In the meantime, feel free to check our website at <a href="https://a5x.in" style="color: #0ff;">a5x.in</a> to learn more about our services.
+          </p>
+
+          <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+          
+          <p style="color: #999; font-size: 13px;">
+            Best regards,<br>
+            <strong>A5X Industries Team</strong><br>
+            <a href="https://a5x.in" style="color: #0ff; text-decoration: none;">a5x.in</a>
+          </p>
+        </div>
+      `,
+    });
+    console.log("✅ User auto-reply sent successfully:", userResult.messageId);
+
+    /* =====================
+       SEND SUCCESS RESPONSE
+    ====================== */
+    return res.status(200).json({
+      success: true,
+      message: "✅ Your enquiry has been submitted successfully! We will respond within 24-48 hours.",
+    });
+
+  } catch (error) {
+    console.error("❌ CRITICAL EMAIL ERROR:");
+    console.error("   Error Message:", error.message);
+    console.error("   Error Code:", error.code);
+    console.error("   Error Response:", error.response);
+    console.error("   Full Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to send enquiry. Please try again later.",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
 };
