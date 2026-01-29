@@ -7,15 +7,12 @@ const storage = new CloudinaryStorage({
   params: {
     folder: "a5x-gallery",
     allowed_formats: ["jpg", "jpeg", "png", "webp"],
-    resource_type: "image",
   },
 });
 
 const upload = multer({
   storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB
-  },
+  limits: { fileSize: 5 * 1024 * 1024 },
 });
 
 export default upload;

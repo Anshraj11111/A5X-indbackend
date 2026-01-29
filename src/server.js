@@ -153,8 +153,25 @@ import contentRoutes from "./routes/contentRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import galleryRoutes from "./routes/galleryRoutes.js";
 import contactRoutes from "./routes/contactRoutes.js";
+import { configureCloudinary } from "./utils/cloudinary.js";
 
-dotenv.config();
+// ✅ Load environment variables from .env file
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const envPath = path.join(__dirname, "..", ".env");
+console.log("📝 Loading .env from:", envPath);
+const envResult = dotenv.config({ path: envPath });
+if (envResult.error) {
+  console.error("❌ Error loading .env:", envResult.error.message);
+} else {
+  console.log("✅ .env loaded successfully");
+  console.log("   Cloudinary Cloud Name:", process.env.CLOUDINARY_CLOUD_NAME ? "✅" : "❌");
+  console.log("   Cloudinary API Key:", process.env.CLOUDINARY_API_KEY ? "✅" : "❌");
+}
+
+// ✅ NOW configure Cloudinary after .env is loaded
+configureCloudinary();
+
 const app = express();
 
 // Trust proxy (important for Render)
@@ -163,8 +180,6 @@ app.set("trust proxy", true);
 /* ======================
    PATH SETUP
 ====================== */
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 const uploadsPath = path.join(__dirname, "..", "uploads");
 
 if (!fs.existsSync(uploadsPath)) {
@@ -185,6 +200,7 @@ app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 ====================== */
 const allowedOrigins = [
   "http://localhost:5173",
+  "http://localhost:5174", // Vite dev server
   "http://localhost:3000",
 
   "https://a5xorignal.vercel.app",
