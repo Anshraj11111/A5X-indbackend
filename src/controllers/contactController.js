@@ -107,113 +107,89 @@ export const sendContactMail = async (req, res) => {
   }
 
   /* ✅ CHECK ENV VARIABLES */
-  console.log("📧 Contact form submission received");
-  console.log("   MAIL_USER:", process.env.MAIL_USER ? "✅" : "❌");
-  console.log("   MAIL_PASS:", process.env.MAIL_PASS ? "✅" : "❌");
-  console.log("   MAIL_TO:", process.env.MAIL_TO ? "✅" : "❌");
-
   if (!process.env.MAIL_USER || !process.env.MAIL_PASS || !process.env.MAIL_TO) {
-    console.error("❌ Email variables not configured!");
+    console.error("❌ Email variables missing!");
     return res.status(500).json({
       success: false,
       message: "Email service not configured.",
     });
   }
 
-  try {
-    /* ✅ GMAIL TRANSPORTER (OPTIMIZED FOR RENDER) */
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.MAIL_USER,
-        pass: process.env.MAIL_PASS,
-      },
-      // 🔥 RENDER OPTIMIZATION
-      connectionTimeout: 30000,  // 30 seconds
-      socketTimeout: 30000,      // 30 seconds
-      pool: {
-        maxConnections: 1,
-        maxMessages: 5,
-        rateDelta: 2000,          // Wait 2s between messages
-        rateLimit: 5,
-      },
-      tls: {
-        rejectUnauthorized: false,
-      },
-      // Skip verification - it causes extra delay
-      verify: false,
-    });
+  // ✅ SEND RESPONSE IMMEDIATELY
+  res.status(200).json({
+    success: true,
+    message: "✅ Your enquiry has been submitted! We will respond within 24-48 hours.",
+  });
 
-    console.log("🔌 Preparing to send emails...");
+  /* =====================
+     BACKGROUND EMAIL (ASYNC)
+  ====================== */
+  // Don't wait for email - send it in background
+  (async () => {
+    try {
+      console.log("📧 Contact form received from:", user_email);
 
-    /* =====================
-       SEND ADMIN EMAIL
-    ====================== */
-    console.log("📤 Sending admin email to:", process.env.MAIL_TO);
-    
-    const adminPromise = transporter.sendMail({
-      from: `"A5X Industries" <${process.env.MAIL_USER}>`,
-      to: process.env.MAIL_TO,
-      subject: `🚀 New Inquiry: ${user_name}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 20px; border-radius: 8px;">
-          <h2 style="color: #0ff;">New Contact Form 🚀</h2>
-          <p><b>Name:</b> ${user_name}</p>
-          <p><b>Email:</b> ${user_email}</p>
-          <p><b>Phone:</b> ${user_phone}</p>
-          <p><b>Company:</b> ${organization || "N/A"}</p>
-          <p><b>Project:</b> ${project_type || "N/A"}</p>
-          <p><b>Budget:</b> ${budget || "N/A"}</p>
-          <h3>Message:</h3>
-          <p>${message.replace(/\n/g, "<br>")}</p>
-        </div>
-      `,
-    });
+      /* ✅ SIMPLIFIED GMAIL CONFIG FOR RENDER */
+      const transporter = nodemailer.createTransport({
+        host: "smtp.gmail.com",
+        port: 587,  // Use TLS port
+        secure: false,  // Use TLS instead of SSL
+        auth: {
+          user: process.env.MAIL_USER,
+          pass: process.env.MAIL_PASS,
+        },
+        connectionTimeout: 20000,
+        socketTimeout: 20000,
+      });
 
-    /* =====================
-       SEND USER AUTO-REPLY
-    ====================== */
-    console.log("📤 Sending auto-reply to:", user_email);
-    
-    const userPromise = transporter.sendMail({
-      from: `"A5X Industries" <${process.env.MAIL_USER}>`,
-      to: user_email,
-      subject: "Thank you for contacting A5X Industries ✅",
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #0ff;">Thank You! 👋</h2>
-          <p>Hello ${user_name},</p>
-          <p>Thank you for contacting <b>A5X Industries</b>!</p>
-          <p style="background: #e8f8f7; padding: 15px; border-radius: 5px;">
-            ✅ We have received your message. Our team will respond within <b>24-48 hours</b>.
-          </p>
-          <p>Best regards,<br><b>A5X Industries</b></p>
-        </div>
-      `,
-    });
+      /* =====================
+         SEND ADMIN EMAIL
+      ====================== */
+      console.log("📤 Sending admin email...");
+      await transporter.sendMail({
+        from: process.env.MAIL_USER,
+        to: process.env.MAIL_TO,
+        subject: `New Inquiry: ${user_name}`,
+        text: `
+Name: ${user_name}
+Email: ${user_email}
+Phone: ${user_phone}
+Company: ${organization || "N/A"}
+Project: ${project_type || "N/A"}
+Budget: ${budget || "N/A"}
 
-    /* =====================
-       WAIT FOR BOTH EMAILS
-    ====================== */
-    const results = await Promise.all([adminPromise, userPromise]);
-    console.log("✅ All emails sent successfully!");
-    console.log("   Admin email ID:", results[0].messageId);
-    console.log("   User email ID:", results[1].messageId);
+Message:
+${message}
+        `,
+      });
+      console.log("✅ Admin email sent");
 
-    return res.status(200).json({
-      success: true,
-      message: "✅ Your enquiry has been submitted! We will respond within 24-48 hours.",
-    });
+      /* =====================
+         SEND AUTO-REPLY
+      ====================== */
+      console.log("📤 Sending auto-reply...");
+      await transporter.sendMail({
+        from: process.env.MAIL_USER,
+        to: user_email,
+        subject: "We received your enquiry ✅",
+        text: `
+Hello ${user_name},
 
-  } catch (error) {
-    console.error("❌ EMAIL ERROR:");
-    console.error("   Message:", error.message);
-    console.error("   Code:", error.code);
-    
-    // Log but don't expose full error to client
-    return res.status(500).json({
-      success: false,
-      message: "Failed to send email. Please try again.",
-    });
-  }
+Thank you for contacting A5X Industries!
+
+We have received your message and our team will respond within 24-48 hours.
+
+Best regards,
+A5X Industries Team
+https://a5x.in
+        `,
+      });
+      console.log("✅ Auto-reply sent");
+      console.log("✅ All emails sent successfully!");
+
+    } catch (err) {
+      console.error("❌ Email Error:", err.message);
+      console.error("   Code:", err.code);
+    }
+  })();
 };
