@@ -1,37 +1,47 @@
 import nodemailer from "nodemailer";
 
 export const sendContactMail = async (req, res) => {
+  const {
+    user_name,
+    user_email,
+    user_phone,
+    organization,
+    project_type,
+    budget,
+    message,
+  } = req.body;
+
+  if (!user_name || !user_email || !user_phone || !message) {
+    return res.status(400).json({
+      success: false,
+      message: "Missing required fields",
+    });
+  }
+
+  // ✅ FRONTEND KO TURANT RESPONSE
+  res.status(200).json({
+    success: true,
+    message: "Enquiry received",
+  });
+
+  // ============================
+  // 🔥 BACKGROUND EMAIL SENDER
+  // ============================
   try {
-    const {
-      user_name,
-      user_email,
-      user_phone,
-      organization,
-      project_type,
-      budget,
-      message,
-    } = req.body;
-
-    // ✅ Validation
-    if (!user_name || !user_email || !user_phone || !message) {
-      return res.status(400).json({
-        success: false,
-        message: "Missing required fields",
-      });
-    }
-
-    // ✅ Gmail SMTP (PRODUCTION SAFE)
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT), // 587
+      port: Number(process.env.SMTP_PORT),
       secure: false, // TLS
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
+      connectionTimeout: 20000,
+      greetingTimeout: 20000,
+      socketTimeout: 20000,
     });
 
-    /* ================= ADMIN EMAIL ================= */
+    // 🔹 Admin Mail
     await transporter.sendMail({
       from: process.env.EMAIL_FROM,
       to: process.env.MAIL_TO,
@@ -49,39 +59,21 @@ export const sendContactMail = async (req, res) => {
       `,
     });
 
-    /* ================= USER AUTO-REPLY ================= */
+    // 🔹 User Auto Reply
     await transporter.sendMail({
       from: process.env.EMAIL_FROM,
       to: user_email,
       subject: "We received your enquiry – A5X Industries",
       html: `
         <p>Hello ${user_name},</p>
-
         <p>Thank you for contacting <b>A5X Industries</b>.</p>
-
-        <p>
-          We have received your enquiry and our team will respond within
-          <b>24–48 hours</b>.
-        </p>
-
-        <p>
-          Regards,<br/>
-          <b>A5X Industries Team</b>
-        </p>
+        <p>We have received your enquiry and will respond within <b>24–48 hours</b>.</p>
+        <p>Regards,<br/><b>A5X Industries Team</b></p>
       `,
     });
 
-    // ✅ RESPONSE AFTER BOTH MAILS SUCCESS
-    return res.json({
-      success: true,
-      message: "Enquiry submitted successfully",
-    });
-
+    console.log("✅ Emails sent successfully");
   } catch (err) {
-    console.error("CONTACT MAIL ERROR:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Email sending failed",
-    });
+    console.error("❌ Email send failed:", err.message);
   }
 };
