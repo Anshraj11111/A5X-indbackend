@@ -19,6 +19,7 @@ import uploadRoutes from "./routes/uploadRoutes.js";
 import galleryRoutes from "./routes/galleryRoutes.js";
 import contactRoutes from "./routes/contactRoutes.js";
 import feedbackRoutes from "./routes/feedbackRoutes.js";
+import adminContactRoutes from "./routes/adminContactRoutes.js";
 import { configureCloudinary } from "./utils/cloudinary.js";
 
 // ✅ Load environment variables from .env file
@@ -130,6 +131,7 @@ app.use("/api/uploads", uploadRoutes);
 app.use("/api/gallery", galleryRoutes);
 app.use("/api/contact",contactRoutes);
 app.use("/api/feedback", feedbackRoutes);
+app.use("/api/admin/contacts", adminContactRoutes);
 
 /* ======================
    ERROR HANDLER

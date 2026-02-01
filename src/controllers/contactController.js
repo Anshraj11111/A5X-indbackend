@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import Contact from "../models/Contact.js";
 
 export const sendContactMail = async (req, res) => {
   const {
@@ -18,6 +19,34 @@ export const sendContactMail = async (req, res) => {
     });
   }
 
+  // 💾 SAVE TO DATABASE
+  try {
+    const newContact = new Contact({
+      user_name,
+      user_email,
+      user_phone,
+      organization,
+      project_type,
+      budget,
+      message,
+    });
+
+    await newContact.save();
+    console.log("✅ Contact saved to database:", newContact._id);
+  } catch (dbErr) {
+    console.error("❌ Database save failed:", dbErr.message);
+  }
+
+  // ✅ FRONTEND KO TURANT RESPONSE
+  res.status(200).json({
+    success: true,
+    message: "Enquiry received",
+  });
+
+  // ============================
+  // 🔥 BACKGROUND EMAIL SENDER
+  // ============================
+  
   // Validate environment variables
   if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS || !process.env.MAIL_TO) {
     console.error("❌ Email config missing:", {
@@ -32,15 +61,6 @@ export const sendContactMail = async (req, res) => {
     });
   }
 
-  // ✅ FRONTEND KO TURANT RESPONSE
-  res.status(200).json({
-    success: true,
-    message: "Enquiry received",
-  });
-
-  // ============================
-  // 🔥 BACKGROUND EMAIL SENDER
-  // ============================
   try {
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
