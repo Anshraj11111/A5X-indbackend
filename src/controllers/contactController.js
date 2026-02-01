@@ -77,6 +77,15 @@ export const sendContactMail = async (req, res) => {
       debug: true,
     });
 
+    // Verify transporter connection configuration before sending
+    try {
+      await transporter.verify();
+      console.log("✅ SMTP transporter verified - ready to send emails");
+    } catch (verifyErr) {
+      console.error("❌ SMTP transporter verification failed:", verifyErr);
+      // don't return here; attempt to send to surface clearer error
+    }
+
     console.log("📧 Sending email from:", process.env.SMTP_USER);
     console.log("📧 Sending to admin:", process.env.MAIL_TO);
 
